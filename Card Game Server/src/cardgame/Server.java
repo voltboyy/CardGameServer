@@ -25,7 +25,7 @@ public class Server {
 					System.out.println("Connection from: " + socket.getInetAddress());
 					out = new DataOutputStream(socket.getOutputStream());
 					in = new DataInputStream(socket.getInputStream());
-					user[i] = new Users(out, in, user); 
+					user[i] = new Users(out, in, user, i); 
 					Thread thread = new Thread(user[i]); //if a user accepts, it will get a thread value, the first gets 0, second gets 1,...
 					thread.start();
 					break;
@@ -43,31 +43,40 @@ class Users implements Runnable{
 	DataInputStream in;
 	Users[] user = new Users[10];
 	String name;
+	int playerid;
+	int playeridin;
+	int xin;
+	int yin;
 	
 	//Essentials of this class file that always have to be given if this class file is being called
-	public Users(DataOutputStream out, DataInputStream in, Users[] user){
+	public Users(DataOutputStream out, DataInputStream in, Users[] user, int pid){
 		this.out = out;
 		this.in = in;
 		this.user = user;
+		this.playerid = pid;
 	}
 
 	public void run() {
-		try {
-			name = in.readUTF(); //receive the name value from client
+		try { //Sneds playerid to client
+			out.writeInt(playerid);
 		} catch (IOException e1) {
-			e1.printStackTrace();
+			System.out.println("Failed to send PlayerID");
 		}
 		while(true){
-			try {
-				String message = in.readUTF(); //Receive the message from client
-				for(int i=0; i<10;i++){
+			try { //Receives all information needed from client
+				playeridin = in.readInt();
+				xin = in.readInt();
+				yin = in.readInt();
+				for(int i=0; i<10;i++){ //Send the gathered information to all connected clients, correctly
 					if(user[i] != null){
-						user[i].out.writeUTF(name + ":" + message); //Send the name and message to all connected clients
+						user[i].out.writeInt(playeridin);
+						user[i].out.writeInt(xin);
+						user[i].out.writeInt(yin);
 					}
 				}
 			} catch (IOException e) { //part of the error catching, gets called if a client disconnects
-				this.out = null;
-				this.in = null;
+				user[playerid] = null;
+				break; //break moet hier zeker staan samen met de null want anders refreshed die ni als een player disconnects waardoor een id constant ingenomen blijft.
 			}
 		}
 	}
