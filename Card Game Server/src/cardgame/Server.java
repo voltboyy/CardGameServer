@@ -22,7 +22,8 @@ public class Server {
 			socket = serverSocket.accept();
 			for(int i=0; i<10; i++){ 
 				if(user[i]==null){
-					System.out.println("Connection from: " + socket.getInetAddress());
+					System.out.print("Connection from: " + socket.getInetAddress());
+					System.out.println(" PID " + i);
 					out = new DataOutputStream(socket.getOutputStream());
 					in = new DataInputStream(socket.getInputStream());
 					user[i] = new Users(out, in, user, i); 
