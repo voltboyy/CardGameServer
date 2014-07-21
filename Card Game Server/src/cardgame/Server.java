@@ -13,10 +13,20 @@ public class Server {
 	static DataInputStream in;
 	static Users[] user = new Users[10];
 	
+	public Thread dataping;
+	
 	//Main method
 	public static void main(String[] args) throws Exception {
+		new Server();
+		
+	}
+	
+	public Server() throws Exception{
 		System.out.println("Starting server...");
-		serverSocket = new ServerSocket(7777);
+		serverSocket = new ServerSocket(49500);
+		//DataPing dp = new DataPing(out, this);
+		//dataping = new Thread(dp);
+		//dataping.start();
 		System.out.println("Server started!");
 		while(true){
 			socket = serverSocket.accept();
@@ -76,6 +86,7 @@ class Users implements Runnable{
 					}
 				}
 			} catch (IOException e) { //part of the error catching, gets called if a client disconnects
+				System.out.println("PID " + playerid + " disconnected");
 				user[playerid] = null;
 				break; //break moet hier zeker staan samen met de null want anders refreshed die ni als een player disconnects waardoor een id constant ingenomen blijft.
 			}
