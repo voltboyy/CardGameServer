@@ -13,8 +13,6 @@ public class Server {
 	static DataInputStream in;
 	static Users[] user = new Users[10];
 	
-	public Thread dataping;
-	
 	//Main method
 	public static void main(String[] args) throws Exception {
 		new Server();
@@ -68,7 +66,7 @@ class Users implements Runnable{
 	}
 
 	public void run() {
-		try { //Sneds playerid to client
+		try { //Sends playerid to client
 			out.writeInt(playerid);
 		} catch (IOException e1) {
 			System.out.println("Failed to send PlayerID");
@@ -78,7 +76,7 @@ class Users implements Runnable{
 				playeridin = in.readInt();
 				xin = in.readInt();
 				yin = in.readInt();
-				for(int i=0; i<10;i++){ //Send the gathered information to all connected clients, correctly
+				for(int i=0; i<10;i++){ //Sends the gathered information to all connected clients, correctly
 					if(user[i] != null){
 						user[i].out.writeInt(playeridin);
 						user[i].out.writeInt(xin);
