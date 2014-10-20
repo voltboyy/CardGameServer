@@ -22,22 +22,17 @@ public class Server {
 	static Socket socket;
 	static DataOutputStream out;
 	static DataInputStream in;
-	static Users[] user = new Users[100];
 	static Authenticate[] authUser = new Authenticate[100];
 	public boolean[] login = new boolean[100];
 	
 	//Main method
 	public static void main(String[] args) throws Exception {
 		new Server();
-		
 	}
 	
 	public Server() throws Exception{
 		System.out.println("Starting server...");
 		serverSocket = new ServerSocket(49500);
-		//DataPing dp = new DataPing(out, this);
-		//dataping = new Thread(dp);
-		//dataping.start();
 		System.out.println("Server started!");
 		while(true){
 			socket = serverSocket.accept();
@@ -47,49 +42,36 @@ public class Server {
 					System.out.println(" PID " + i);
 					out = new DataOutputStream(socket.getOutputStream());
 					in = new DataInputStream(socket.getInputStream());
-					out.writeInt(i);
-					authUser[i] = new Authenticate(out, in, authUser, i, serverSocket, socket); 
+					authUser[i] = new Authenticate(out, in, authUser, i); 
 					Thread thread = new Thread(authUser[i]); //if a user accepts, it will get a thread value, the first gets 0, second gets 1,...
 					thread.start();
 					break;
 				}
-				/*if(user[i]==null){
-					System.out.print("Connection from: " + socket.getInetAddress());
-					System.out.println(" PID " + i);
-					out = new DataOutputStream(socket.getOutputStream());
-					in = new DataInputStream(socket.getInputStream());
-					user[i] = new Users(out, in, user, i); 
-					Thread thread = new Thread(user[i]); //if a user accepts, it will get a thread value, the first gets 0, second gets 1,...
-					thread.start();
-					break;
-				}*/
 			}
 		}
 	}
 }
 
+//Seperate class file, same imports
 class Authenticate implements Runnable{
 
-	ServerSocket serverSocket;
-	Socket socket;
 	DataOutputStream out;
 	DataInputStream in;
-	Users[] users = new Users[100];
 	Authenticate[] authUser = new Authenticate[100];
 	String username;
 	String rawpass;
 	int playerid;
 	int playeridin;
+	int xin;
+	int yin;
 	public boolean[] login = new boolean[100];
 	public boolean[] succes = new boolean[100];
 	
-	public Authenticate(DataOutputStream out, DataInputStream in, Authenticate[] auth, int pid, ServerSocket servsock, Socket sock){
+	public Authenticate(DataOutputStream out, DataInputStream in, Authenticate[] auth, int pid){
 		this.out = out;
 		this.in = in;
 		this.authUser = auth;
 		this.playerid = pid;
-		this.serverSocket = servsock;
-		this.socket = sock;
 	}
 	
 	public boolean authenticate(String attemptedPassword, byte[] encryptedPassword, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException {
@@ -129,7 +111,6 @@ class Authenticate implements Runnable{
 		try { //Sends playerid to client
 			username = in.readUTF();
 			rawpass = in.readUTF();
-			playeridin = in.readInt();
 			Scanner scanuser = new Scanner(new File("C:/Users/Junior/Desktop/user.txt"));
 			succes[playerid] = false;
 			while(scanuser.hasNextLine()){
@@ -141,13 +122,33 @@ class Authenticate implements Runnable{
 					if(authenticate(rawpass, passbytes, saltbytes)){
 						out.writeBoolean(true);
 						succes[playerid] = true;
-						System.out.print("Connection from: " + socket.getInetAddress());
-						System.out.println(" PID " + playerid);
-						out = new DataOutputStream(socket.getOutputStream());
-						in = new DataInputStream(socket.getInputStream());
-						users[playerid] = new Users(out, in, users, authUser, playerid);
-						Thread thread = new Thread(users[playerid]); //if a user accepts, it will get a thread value, the first gets 0, second gets 1,...
-						thread.start();
+						//System.out.print("Connection from: " + socket.getInetAddress());
+						System.out.println("PID " + playerid + " connected!");
+						
+						
+						try { //Sends playerid to client
+							out.writeInt(playerid);
+						} catch (IOException e1) {
+							System.out.println("Failed to send PlayerID");
+						}
+						while(true){
+							try { //Receives all information needed from client
+								playeridin = in.readInt();
+								xin = in.readInt();
+								yin = in.readInt();
+								for(int i=0; i<100;i++){ //Sends the gathered information to all connected clients, correctly
+									if(authUser[i] != null){
+										authUser[i].out.writeInt(playeridin);
+										authUser[i].out.writeInt(xin);
+										authUser[i].out.writeInt(yin);
+									}
+								}
+							} catch (IOException e) { //part of the error catching, gets called if a client disconnects
+								System.out.println("PID " + playerid + " disconnected");
+								authUser[playerid] = null;
+								break; //break moet hier zeker staan samen met de null want anders refreshed die ni als een player disconnects waardoor een id constant ingenomen blijft.
+							}
+						}
 						break;
 					}
 				}
@@ -156,74 +157,18 @@ class Authenticate implements Runnable{
 				out.writeBoolean(false);
 				System.out.println("PID " + playerid + " disconnected");
 				System.out.println("Error in 'succes'");
-				users[playerid] = null;
 				authUser[playerid] = null;
 			}
 		} catch (IOException e1) {
 			System.out.println("Failed to get authentification data...");
 			System.out.println("PID " + playerid + " disconnected");
-			users[playerid] = null;
 			authUser[playerid] = null;
 		} catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
-			users[playerid] = null;
 			authUser[playerid] = null;
 		} catch (InvalidKeySpecException e) {
 			e.printStackTrace();
-			users[playerid] = null;
 			authUser[playerid] = null;
-		}
-	}
-	
-}
-
-//Seperate class file, same imports
-class Users implements Runnable{
-	
-	//Global variables
-	DataOutputStream out;
-	DataInputStream in;
-	Users[] user = new Users[100];
-	Authenticate[] authUser = new Authenticate[100];
-	String name;
-	int playerid;
-	int playeridin;
-	int xin;
-	int yin;
-	
-	//Essentials of this class file that always have to be given if this class file is being called
-	public Users(DataOutputStream out, DataInputStream in, Users[] user, Authenticate[] auth,  int pid){
-		this.out = out;
-		this.in = in;
-		this.user = user;
-		this.authUser = auth;
-		this.playerid = pid;
-	}
-
-	public void run() {
-		try { //Sends playerid to client
-			out.writeInt(playerid);
-		} catch (IOException e1) {
-			System.out.println("Failed to send PlayerID");
-		}
-		while(true){
-			try { //Receives all information needed from client
-				playeridin = in.readInt();
-				xin = in.readInt();
-				yin = in.readInt();
-				for(int i=0; i<100;i++){ //Sends the gathered information to all connected clients, correctly
-					if(user[i] != null){
-						user[i].out.writeInt(playeridin);
-						user[i].out.writeInt(xin);
-						user[i].out.writeInt(yin);
-					}
-				}
-			} catch (IOException e) { //part of the error catching, gets called if a client disconnects
-				System.out.println("PID " + playerid + " disconnected");
-				user[playerid] = null;
-				authUser[playerid] = null;
-				break; //break moet hier zeker staan samen met de null want anders refreshed die ni als een player disconnects waardoor een id constant ingenomen blijft.
-			}
 		}
 	}
 	
