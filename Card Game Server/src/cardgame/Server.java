@@ -22,8 +22,9 @@ public class Server {
 	static Socket socket;
 	static DataOutputStream out;
 	static DataInputStream in;
+	byte[] salt, encrpass;
 	static Authenticate[] authUser = new Authenticate[100];
-	public boolean[] login = new boolean[100];
+	public boolean[] userExists = new boolean[100];
 	
 	//Main method
 	public static void main(String[] args) throws Exception {
@@ -38,7 +39,7 @@ public class Server {
 			socket = serverSocket.accept();
 			for(int i=0; i<100; i++){ 
 				if(authUser[i]==null){ //Apparently user[i] is always null
-					System.out.print("Authentication from: " + socket.getInetAddress());
+					System.out.print("Connection from: " + socket.getInetAddress());
 					System.out.println(" PID " + i);
 					out = new DataOutputStream(socket.getOutputStream());
 					in = new DataInputStream(socket.getInputStream());
@@ -58,14 +59,20 @@ class Authenticate implements Runnable{
 	DataOutputStream out;
 	DataInputStream in;
 	Authenticate[] authUser = new Authenticate[100];
+	String givenUser = "", givenCode = "", givenMail = "", givenPass = "9";
 	String username;
 	String rawpass;
+	String usernameinput;
+	int[] usernumber = new int[100];
+	int levelInt;
 	int playerid;
 	int playeridin;
 	int xin;
 	int yin;
-	public boolean[] login = new boolean[100];
+	byte[] salt, encrpass;
 	public boolean[] succes = new boolean[100];
+	public boolean[] userExists = new boolean[100];
+	public boolean[] codeUsed = new boolean[100];
 	
 	public Authenticate(DataOutputStream out, DataInputStream in, Authenticate[] auth, int pid){
 		this.out = out;
@@ -108,60 +115,167 @@ class Authenticate implements Runnable{
 	}
 	
 	public void run() {
-		try { //Sends playerid to client
-			username = in.readUTF();
-			rawpass = in.readUTF();
-			Scanner scanuser = new Scanner(new File("C:/Users/Junior/Desktop/user.txt"));
-			succes[playerid] = false;
-			while(scanuser.hasNextLine()){
-				String user = scanuser.nextLine();
-				if(username.equals(user)){
-					//This works like a charm
-					byte[] saltbytes = Files.readAllBytes(Paths.get("C:/Users/Junior/Desktop/ServerData/"+username+"-salt.dat"));
-					byte[] passbytes = Files.readAllBytes(Paths.get("C:/Users/Junior/Desktop/ServerData/"+username+"-pass.dat"));
-					if(authenticate(rawpass, passbytes, saltbytes)){
-						out.writeBoolean(true);
-						succes[playerid] = true;
-						//System.out.print("Connection from: " + socket.getInetAddress());
-						System.out.println("PID " + playerid + " connected!");
-						
-						
-						try { //Sends playerid to client
-							out.writeInt(playerid);
-						} catch (IOException e1) {
-							System.out.println("Failed to send PlayerID");
-						}
-						while(true){
-							try { //Receives all information needed from client
-								playeridin = in.readInt();
-								xin = in.readInt();
-								yin = in.readInt();
-								for(int i=0; i<100;i++){ //Sends the gathered information to all connected clients, correctly
-									if(authUser[i] != null){
-										authUser[i].out.writeInt(playeridin);
-										authUser[i].out.writeInt(xin);
-										authUser[i].out.writeInt(yin);
-									}
-								}
-							} catch (IOException e) { //part of the error catching, gets called if a client disconnects
-								System.out.println("PID " + playerid + " disconnected");
-								authUser[playerid] = null;
-								break; //break moet hier zeker staan samen met de null want anders refreshed die ni als een player disconnects waardoor een id constant ingenomen blijft.
+		try {
+			levelInt = in.readInt();
+			usernumber[playerid] = 0;
+			if(levelInt == 1){
+				System.out.println("PID " + playerid + " is authenticating.");
+				username = in.readUTF();
+				rawpass = in.readUTF();
+				Scanner scanuser = new Scanner(new File("C:/Users/Junior/Desktop/GameServer/user.txt"));
+				succes[playerid] = false;
+				while(scanuser.hasNextLine()){
+					usernumber[playerid]++;
+					String user = scanuser.nextLine();
+					if(username.equals(user)){
+						//This works like a charm
+						byte[] saltbytes = Files.readAllBytes(Paths.get("C:/Users/Junior/Desktop/GameServer/ServerData/"+username+"-salt.dat"));
+						byte[] passbytes = Files.readAllBytes(Paths.get("C:/Users/Junior/Desktop/GameServer/ServerData/"+username+"-pass.dat"));
+						if(authenticate(rawpass, passbytes, saltbytes)){
+							out.writeBoolean(true);
+							succes[playerid] = true;
+							//System.out.print("Connection from: " + socket.getInetAddress());
+							System.out.println("PID " + playerid + " connected!");
+							try { //Sends playerid to client
+								out.writeInt(playerid);
+							} catch (IOException e1) {
+								System.out.println("Failed to send PlayerID");
 							}
+							while(true){
+								try { //Receives all information needed from client
+									playeridin = in.readInt();
+									xin = in.readInt();
+									yin = in.readInt();
+									usernameinput = in.readUTF();
+									for(int i=0; i<100;i++){ //Sends the gathered information to all connected clients, correctly
+										if(authUser[i] != null){
+											authUser[i].out.writeInt(playeridin);
+											authUser[i].out.writeInt(xin);
+											authUser[i].out.writeInt(yin);
+											authUser[i].out.writeUTF(usernameinput);
+										}
+									}
+								} catch (IOException e) { //part of the error catching, gets called if a client disconnects
+									System.out.println("PID " + playerid + " disconnected");
+									authUser[playerid] = null;
+									for(int i=0; i<100;i++){ //Sends the gathered information to all connected clients, correctly
+										if(authUser[i] != null){
+											authUser[i].out.writeInt(playerid);
+											authUser[i].out.writeInt(0);
+											authUser[i].out.writeInt(0);
+											authUser[i].out.writeUTF("");
+										}
+									}
+									break; //break moet hier zeker staan samen met de null want anders refreshed die ni als een player disconnects waardoor een id constant ingenomen blijft.
+								}
+							}
+							break;
 						}
-						break;
 					}
 				}
-			}
-			if(!succes[playerid]){
-				out.writeBoolean(false);
-				System.out.println("PID " + playerid + " disconnected");
-				System.out.println("Error in 'succes'");
-				authUser[playerid] = null;
+				if(!succes[playerid]){
+					out.writeBoolean(false);
+					System.out.println("PID " + playerid + " disconnected");
+					System.out.println("Error in 'succes'");
+					authUser[playerid] = null;
+				}
+			}else if(levelInt == 2){
+				System.out.println("PID " + playerid + " is trying to create an account...");
+				givenCode = in.readUTF();
+				givenUser = in.readUTF();
+				givenPass = in.readUTF();
+				givenMail = in.readUTF();
+				System.out.println(givenCode);
+				System.out.println(givenUser);
+				System.out.println(givenMail);
+				Scanner scancode = new Scanner(new File("C:/Users/Junior/Desktop/GameServer/code.txt"));
+				userExists[playerid] = false;
+				codeUsed[playerid] = false;
+				if(givenCode == "" || givenUser == "" || givenPass == "" || givenMail == ""){
+					System.out.println("PID " + playerid + " hasn't filled in all fields...");
+					out.writeBoolean(false);
+				}else{
+					System.out.println("PID " + playerid + " has filled in all fields...");
+					out.writeBoolean(true);
+					while(scancode.hasNextLine()){
+						String code = scancode.nextLine();
+						if(givenCode.equals(code)){
+							Scanner scanusedcodes = new Scanner(new File("C:/Users/Junior/Desktop/GameServer/usedcodes.txt"));
+							while(scanusedcodes.hasNextLine()){
+								String usedcode = scanusedcodes.nextLine();
+								if(givenCode.equals(usedcode)){
+									codeUsed[playerid] = true;
+									break;
+								}
+							}
+							out.writeBoolean(codeUsed[playerid]);
+							if(!codeUsed[playerid]){
+								System.out.println("[PID " + playerid + "] Code exists and is unused, proceeding with username check...");
+								Scanner scanuser = new Scanner(new File("C:/Users/Junior/Desktop/GameServer/user.txt"));
+								while(scanuser.hasNextLine()){
+									String user = scanuser.nextLine();
+									if(givenUser.equals(user)){
+										System.out.println("Username exists");
+										userExists[playerid] = true;
+										break;
+									}
+								}
+							}else{
+								System.out.println("[PID " + playerid + "] Code has been used, breaking loop...");
+								break;
+							}
+							out.writeBoolean(userExists[playerid]);
+							if(!userExists[playerid] && !codeUsed[playerid]){
+								System.out.println("[PID " + playerid + "] Username available, proceeding with account creation...");
+								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/Users/Junior/Desktop/GameServer/user.txt", true)))) {
+								    out.println(givenUser);
+								}catch (IOException e1) {
+								    //exception handling left as an exercise for the reader
+								}
+								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/Users/Junior/Desktop/GameServer/mails.txt", true)))) {
+								    out.println(givenMail);
+								}catch (IOException e1) {
+								    //exception handling left as an exercise for the reader
+								}
+								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/Users/Junior/Desktop/GameServer/usedcodes.txt", true)))) {
+								    out.println(givenCode);
+								}catch (IOException e1) {
+								    //exception handling left as an exercise for the reader
+								}
+								try {
+									salt = generateSalt();
+									FileOutputStream fos = new FileOutputStream("C:/Users/Junior/Desktop/GameServer/ServerData/"+givenUser+"-salt.dat");
+									fos.write(salt);
+									fos.close();
+								} catch (NoSuchAlgorithmException | IOException e1) {
+									e1.printStackTrace();
+								}
+								try {
+									byte[] saltbytes = Files.readAllBytes(Paths.get("C:/Users/Junior/Desktop/GameServer/ServerData/"+givenUser+"-salt.dat"));
+									encrpass = getEncryptedPassword(givenPass, saltbytes);
+									FileOutputStream fos = new FileOutputStream("C:/Users/Junior/Desktop/GameServer/ServerData/"+givenUser+"-pass.dat");
+									fos.write(encrpass);
+									fos.close();
+								} catch (FileNotFoundException e2) {
+									e2.printStackTrace();
+								} catch (NoSuchAlgorithmException | InvalidKeySpecException e1) {
+									e1.printStackTrace();
+								} catch (IOException e1) {
+									e1.printStackTrace();
+								}
+							}
+							break;
+						}
+					}
+					out.writeBoolean(true);
+					givenPass = "";
+					authUser[playerid] = null;
+				}
 			}
 		} catch (IOException e1) {
-			System.out.println("Failed to get authentification data...");
+			System.out.println("[PID " + playerid + "] Failed to get authentification data...");
 			System.out.println("PID " + playerid + " disconnected");
+			System.out.println(e1);
 			authUser[playerid] = null;
 		} catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
