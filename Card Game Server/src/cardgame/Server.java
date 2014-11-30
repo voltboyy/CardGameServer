@@ -37,7 +37,7 @@ public class Server {
 		System.out.println("Server started!");
 		while(true){
 			socket = serverSocket.accept();
-			for(int i=0; i<100; i++){ 
+			for(int i=0; i<100; i++){
 				if(authUser[i]==null){ //Apparently user[i] is always null
 					System.out.print("Connection from: " + socket.getInetAddress());
 					System.out.println(" PID " + i);
@@ -122,15 +122,15 @@ class Authenticate implements Runnable{
 				System.out.println("PID " + playerid + " is authenticating.");
 				username = in.readUTF();
 				rawpass = in.readUTF();
-				Scanner scanuser = new Scanner(new File("C:/Users/Junior/Desktop/GameServer/user.txt"));
+				Scanner scanuser = new Scanner(new File("C:/GameServer/user.txt"));
 				succes[playerid] = false;
 				while(scanuser.hasNextLine()){
 					usernumber[playerid]++;
 					String user = scanuser.nextLine();
 					if(username.equals(user)){
 						//This works like a charm
-						byte[] saltbytes = Files.readAllBytes(Paths.get("C:/Users/Junior/Desktop/GameServer/ServerData/"+username+"-salt.dat"));
-						byte[] passbytes = Files.readAllBytes(Paths.get("C:/Users/Junior/Desktop/GameServer/ServerData/"+username+"-pass.dat"));
+						byte[] saltbytes = Files.readAllBytes(Paths.get("C:/GameServer/ServerData/"+username+"-salt.dat"));
+						byte[] passbytes = Files.readAllBytes(Paths.get("C:/GameServer/ServerData/"+username+"-pass.dat"));
 						if(authenticate(rawpass, passbytes, saltbytes)){
 							out.writeBoolean(true);
 							succes[playerid] = true;
@@ -185,13 +185,13 @@ class Authenticate implements Runnable{
 				givenUser = in.readUTF();
 				givenPass = in.readUTF();
 				givenMail = in.readUTF();
-				System.out.println(givenCode);
-				System.out.println(givenUser);
-				System.out.println(givenMail);
-				Scanner scancode = new Scanner(new File("C:/Users/Junior/Desktop/GameServer/code.txt"));
+				System.out.println("[PID " + playerid + "] "+givenCode);
+				System.out.println("[PID " + playerid + "] "+givenUser);
+				System.out.println("[PID " + playerid + "] "+givenMail);
+				Scanner scancode = new Scanner(new File("C:/GameServer/code.txt"));
 				userExists[playerid] = false;
 				codeUsed[playerid] = false;
-				if(givenCode == "" || givenUser == "" || givenPass == "" || givenMail == ""){
+				if(givenCode.isEmpty() || givenUser.isEmpty() || givenPass.isEmpty() || givenMail.isEmpty()){
 					System.out.println("PID " + playerid + " hasn't filled in all fields...");
 					out.writeBoolean(false);
 				}else{
@@ -200,7 +200,7 @@ class Authenticate implements Runnable{
 					while(scancode.hasNextLine()){
 						String code = scancode.nextLine();
 						if(givenCode.equals(code)){
-							Scanner scanusedcodes = new Scanner(new File("C:/Users/Junior/Desktop/GameServer/usedcodes.txt"));
+							Scanner scanusedcodes = new Scanner(new File("C:/GameServer/usedcodes.txt"));
 							while(scanusedcodes.hasNextLine()){
 								String usedcode = scanusedcodes.nextLine();
 								if(givenCode.equals(usedcode)){
@@ -211,7 +211,7 @@ class Authenticate implements Runnable{
 							out.writeBoolean(codeUsed[playerid]);
 							if(!codeUsed[playerid]){
 								System.out.println("[PID " + playerid + "] Code exists and is unused, proceeding with username check...");
-								Scanner scanuser = new Scanner(new File("C:/Users/Junior/Desktop/GameServer/user.txt"));
+								Scanner scanuser = new Scanner(new File("C:/GameServer/user.txt"));
 								while(scanuser.hasNextLine()){
 									String user = scanuser.nextLine();
 									if(givenUser.equals(user)){
@@ -227,33 +227,33 @@ class Authenticate implements Runnable{
 							out.writeBoolean(userExists[playerid]);
 							if(!userExists[playerid] && !codeUsed[playerid]){
 								System.out.println("[PID " + playerid + "] Username available, proceeding with account creation...");
-								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/Users/Junior/Desktop/GameServer/user.txt", true)))) {
+								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/GameServer/user.txt", true)))) {
 								    out.println(givenUser);
 								}catch (IOException e1) {
 								    //exception handling left as an exercise for the reader
 								}
-								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/Users/Junior/Desktop/GameServer/mails.txt", true)))) {
+								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/GameServer/mails.txt", true)))) {
 								    out.println(givenMail);
 								}catch (IOException e1) {
 								    //exception handling left as an exercise for the reader
 								}
-								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/Users/Junior/Desktop/GameServer/usedcodes.txt", true)))) {
+								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/GameServer/usedcodes.txt", true)))) {
 								    out.println(givenCode);
 								}catch (IOException e1) {
 								    //exception handling left as an exercise for the reader
 								}
 								try {
 									salt = generateSalt();
-									FileOutputStream fos = new FileOutputStream("C:/Users/Junior/Desktop/GameServer/ServerData/"+givenUser+"-salt.dat");
+									FileOutputStream fos = new FileOutputStream("C:/GameServer/ServerData/"+givenUser+"-salt.dat");
 									fos.write(salt);
 									fos.close();
 								} catch (NoSuchAlgorithmException | IOException e1) {
 									e1.printStackTrace();
 								}
 								try {
-									byte[] saltbytes = Files.readAllBytes(Paths.get("C:/Users/Junior/Desktop/GameServer/ServerData/"+givenUser+"-salt.dat"));
+									byte[] saltbytes = Files.readAllBytes(Paths.get("C:/GameServer/ServerData/"+givenUser+"-salt.dat"));
 									encrpass = getEncryptedPassword(givenPass, saltbytes);
-									FileOutputStream fos = new FileOutputStream("C:/Users/Junior/Desktop/GameServer/ServerData/"+givenUser+"-pass.dat");
+									FileOutputStream fos = new FileOutputStream("C:/GameServer/ServerData/"+givenUser+"-pass.dat");
 									fos.write(encrpass);
 									fos.close();
 								} catch (FileNotFoundException e2) {
@@ -268,9 +268,9 @@ class Authenticate implements Runnable{
 						}
 					}
 					out.writeBoolean(true);
-					givenPass = "";
-					authUser[playerid] = null;
 				}
+				givenPass = "";
+				authUser[playerid] = null;
 			}
 		} catch (IOException e1) {
 			System.out.println("[PID " + playerid + "] Failed to get authentification data...");
