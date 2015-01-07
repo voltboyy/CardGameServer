@@ -11,6 +11,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.util.Arrays;
 import java.util.Scanner;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -141,13 +143,13 @@ class Authenticate implements Runnable{
 							} catch (IOException e1) {
 								System.out.println("Failed to send PlayerID");
 							}
-							while(true){
-								try { //Receives all information needed from client
-									playeridin = in.readInt();
+							while(true){//Receives all information needed from client
+								try{
+				            		playeridin = in.readInt();
 									xin = in.readInt();
 									yin = in.readInt();
 									usernameinput = in.readUTF();
-									for(int i=0; i<100;i++){ //Sends the gathered information to all connected clients, correctly
+				            		for(int i=0; i<100;i++){ //Sends the gathered information to all connected clients, correctly
 										if(authUser[i] != null){
 											authUser[i].out.writeInt(playeridin);
 											authUser[i].out.writeInt(xin);
@@ -155,7 +157,8 @@ class Authenticate implements Runnable{
 											authUser[i].out.writeUTF(usernameinput);
 										}
 									}
-								} catch (IOException e) { //part of the error catching, gets called if a client disconnects
+				            		Thread.sleep(10);
+								}catch(IOException | InterruptedException e){ //part of the error catching, gets called if a client disconnects
 									System.out.println("PID " + playerid + " disconnected");
 									authUser[playerid] = null;
 									for(int i=0; i<100;i++){ //Sends the gathered information to all connected clients, correctly
