@@ -35,7 +35,7 @@ public class Server {
 	
 	public Server() throws Exception{
 		System.out.println("Starting server...");
-		serverSocket = new ServerSocket(49500);
+		serverSocket = new ServerSocket(49500/*, 50, InetAddress.getByName("0.0.0.0")*/);
 		System.out.println("Server started!");
 		while(true){
 			socket = serverSocket.accept();
@@ -66,6 +66,7 @@ class Authenticate implements Runnable{
 	String rawpass;
 	String usernameinput;
 	int[] usernumber = new int[100];
+	int[] sparenumber = new int[100];
 	int levelInt;
 	int playerid;
 	int playeridin;
@@ -120,7 +121,8 @@ class Authenticate implements Runnable{
 		try {
 			levelInt = in.readInt();
 			usernumber[playerid] = 0;
-			if(levelInt == 1){
+			sparenumber[playerid] = 0;
+			if(levelInt == 1){ //User is trying to authenticate
 				System.out.println("PID " + playerid + " is authenticating.");
 				username = in.readUTF();
 				rawpass = in.readUTF();
@@ -136,9 +138,21 @@ class Authenticate implements Runnable{
 						if(authenticate(rawpass, passbytes, saltbytes)){
 							out.writeBoolean(true);
 							succes[playerid] = true;
-							//System.out.print("Connection from: " + socket.getInetAddress());
 							System.out.println("PID " + playerid + " connected!");
-							try { //Sends playerid to client
+							try { //Sends playerid and stats to client
+								Scanner scanstats = new Scanner(new File("C:/GameServer/userdata.txt"));
+								String rawstats = "";
+								String sparestats = "";
+								while(scanstats.hasNextLine()){
+									sparenumber[playerid]++;
+									if(sparenumber[playerid] == usernumber[playerid]){
+										rawstats = scanstats.nextLine();
+									}
+									else{
+										sparestats = scanstats.nextLine();
+									}
+								}
+								out.writeUTF(rawstats);
 								out.writeInt(playerid);
 							} catch (IOException e1) {
 								System.out.println("Failed to send PlayerID");
@@ -152,6 +166,7 @@ class Authenticate implements Runnable{
 				            		for(int i=0; i<100;i++){ //Sends the gathered information to all connected clients, correctly
 										if(authUser[i] != null){
 											authUser[i].out.writeInt(playeridin);
+											authUser[i].out.writeBoolean(true);
 											authUser[i].out.writeInt(xin);
 											authUser[i].out.writeInt(yin);
 											authUser[i].out.writeUTF(usernameinput);
@@ -164,6 +179,7 @@ class Authenticate implements Runnable{
 									for(int i=0; i<100;i++){ //Sends the gathered information to all connected clients, correctly
 										if(authUser[i] != null){
 											authUser[i].out.writeInt(playerid);
+											authUser[i].out.writeBoolean(false);
 											authUser[i].out.writeInt(0);
 											authUser[i].out.writeInt(0);
 											authUser[i].out.writeUTF("");
@@ -182,7 +198,7 @@ class Authenticate implements Runnable{
 					System.out.println("Error in 'succes'");
 					authUser[playerid] = null;
 				}
-			}else if(levelInt == 2){
+			}else if(levelInt == 2){ //User is trying to create an account
 				System.out.println("PID " + playerid + " is trying to create an account...");
 				givenCode = in.readUTF();
 				givenUser = in.readUTF();
@@ -242,6 +258,11 @@ class Authenticate implements Runnable{
 								}
 								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/GameServer/usedcodes.txt", true)))) {
 								    out.println(givenCode);
+								}catch (IOException e1) {
+								    //exception handling left as an exercise for the reader
+								}
+								try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("C:/GameServer/userdata.txt", true)))) {
+								    out.println("adminrights_money_locationx_locationy_10_10_karma_speed_mana_shield_Level_att_def_trustlevel");
 								}catch (IOException e1) {
 								    //exception handling left as an exercise for the reader
 								}
